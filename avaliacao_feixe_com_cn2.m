@@ -2,9 +2,9 @@ clear all; close all; clc;
 
 %%%%%%%%%% Dados de Entrada %%%%%%%%%%%%%
 % Carregando dados
-load('1-CENTRO_TXX_FYY_DDMMYY.mat');
+load('3-FSO_TXX_FYY_DDMMYY.mat');
 
-%%%%%%%%%% Dados de Entrada %%%%%%%%%%%%%
+%%%%%%%%%% Parâmetros Iniciais %%%%%%%%%%%%%
 x0 = [-20 -20];
 W = 8.67; % "Largura" da Gaussiana para este Anteparo 
 
@@ -15,9 +15,7 @@ x1 = 0; y1 = d * (sqrt(3)/3);       % Topo
 x2 = -d/2; y2 = -d * (sqrt(3)/6);   % Esquerda
 x3 = d/2; y3 = -d * (sqrt(3)/6);    % Direita
 
-%%%%%%%%%%% Definição das posições dos fotodetectores %%%%%%%%%%%%%%%%
-
-W = 15.5; % W REAL MEDIDO
+W = 14; % W REAL MEDIDO
 % Acessar dados dos fotodetectores
 topo = DADOS.Topo;
 esquerda = DADOS.Esquerda;
@@ -40,7 +38,7 @@ out = cell(1, n_amostras);
 for i = 1:n_amostras
     [solution, x0_novo] = resolve_triang(x0, x1, y1, x2, y2, x3, y3, P1N(i), P2N(i), P3N(i), W);
     x0 = x0_novo;
-    out{i} = solution;
+    out{i} = solution;  % vetor [x, y]
 end   
 
 % Extração das coordenadas
@@ -62,7 +60,10 @@ end
 % Cálculo do rc (vetorizado)
 rc = sqrt(xc.^2 + yc.^2);  % em mm
 
-
+%%%%%%%%%% Cálculo do tempo total de coleta %%%%%%%%%%%%%
+sample_rate = 1000;                      % Taxa amostral (1 kHz)
+tempo_total_s = length(rc) / sample_rate;  
+fprintf('Tempo total de coleta: %.2f segundos\n', tempo_total_s);
 
 %%%%%%%%%% Cálculo do Cn² %%%%%%%%%%%%%
 % A equação geral utilizada é:
@@ -79,11 +80,10 @@ rc = sqrt(xc.^2 + yc.^2);  % em mm
 %
 % Assim, usamos a variância de rc (em janelas de 1 segundo) para estimar Cn².
 
-%%%%%%%%%% Cálculo do Cn² %%%%%%%%%%%%%
-interval_cn = 1000;        % 1 segundo de dados (1 kHz) Frequencia do DAQ
-L = 1;                     % distância em metros do enlace
-rc_m = rc / 1000;          % conversão mm -> m
-W_m  = W  / 1000;          % conversão mm -> m
+interval_cn = sample_rate;     % 1 segundo de dados (1 kHz)
+L = 3.5;                         % distância em metros do enlace
+rc_m = rc / 1000;              % conversão mm -> m
+W_m  = W  / 1000;              % conversão mm -> m
 
 Cn2 = zeros(1, ceil(length(rc_m) / interval_cn));
 for aux = 1:ceil(length(rc_m) / interval_cn)
@@ -120,17 +120,22 @@ title('Posição da Luz no Triângulo de Fotodetectores');
 legend('Triângulo', 'Fotodetectores', 'Posição da Luz', 'Location', 'best');
 
 % 5. Plot do Cn²
+tempo_cn2 = (0:length(Cn2)-1); % eixo X em segundos
 figure;
-plot(Cn2, 'LineWidth', 1.5);
+plot(tempo_cn2, Cn2, 'LineWidth', 1.5);
 grid on;
-xlabel('Intervalo (1 s)');
+xlabel('Tempo (s)');
 ylabel('Cn²');
-title('Variação de Cn² ao longo do tempo');
+title(sprintf('Variação de Cn² ao longo do tempo (%.2f s)', tempo_total_s));
+% Ajustar escala log e ticks
+set(gca, 'YScale', 'log');  % Escala logarítmica no eixo Y
+yticks(10.^(-18:-9));       % Ticks de 10^-18 a 10^-9
+ylim([1e-18 3e-9]);         % Limite do eixo Y
 
 %%%%%%%%%% FUNÇÃO PARA RESOLVER O SISTEMA %%%%%%%%%%%%%
 function [solution, x0_novo] = resolve_triang(x0, x1, y1, x2, y2, x3, y3, P1, P2, P3, W)
     format long;
-    solution = {};
+    solution = [];
     x0_novo = x0; % Se pular, retorna o x0 original
 
     if P1 <= 0 || P2 <= 0 || P3 <= 0
@@ -154,7 +159,7 @@ function [solution, x0_novo] = resolve_triang(x0, x1, y1, x2, y2, x3, y3, P1, P2
     
     try
         resp = fsolve(f, x0, options);
-        solution = [solution, resp];
+        solution = resp;  % vetor [x, y]
         x0_novo = resp;
     catch
         warning('Erro no fsolve. Pulando solução.');

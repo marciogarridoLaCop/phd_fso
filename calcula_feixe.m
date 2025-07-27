@@ -14,8 +14,8 @@ x2 = -d/2; y2 = -d*(sqrt(3)/6);   % Esquerda
 x3 = d/2; y3 = -d*(sqrt(3)/6);    % Direita
 
 % Carregando dados
-load('1-CENTRO_TXX_FYY_DDMMYY.mat');
-W=15.5% W REAL MEDIDO
+load('3-FSO_TXX_FYY_DDMMYY.mat');
+W=14% W REAL MEDIDO
 % Acessar dados dos fotodetectores
 topo = DADOS.Topo;
 esquerda = DADOS.Esquerda;
